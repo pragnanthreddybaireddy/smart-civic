@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CivicPulse — Smart Complaint Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #1a1a2e;
+    --accent: #16c79a;
+    --accent2: #f7971e;
+    --accent3: #e84393;
+    --surface: #ffffff;
+    --surface2: #f6f8fa;
+    --surface3: #eef1f5;
+    --border: rgba(0,0,0,0.09);
+    --border2: rgba(0,0,0,0.16);
+    --text: #0f172a;
+    --text2: #475569;
+    --text3: #94a3b8;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+    --font: 'Sora', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --sidebar-w: 260px;
+  }
+  [data-dark] {
+    --primary: #0d0d1a;
+    --surface: #161622;
+    --surface2: #1e1e2e;
+    --surface3: #252535;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #475569;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.25);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  html, body { height: 100%; font-family: var(--font); background: var(--surface3); color: var(--text); transition: background 0.3s, color 0.3s; }
+  #root { height: 100%; }
+  input, select, textarea, button { font-family: var(--font); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+  /* Animations */
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes slideIn { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fade-in { animation: fadeIn 0.35s ease forwards; }
+  .slide-in { animation: slideIn 0.3s ease forwards; }
+
+  /* Toast */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+  .toast { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 18px; font-size: 13.5px; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px; animation: fadeIn 0.3s ease; max-width: 320px; }
+  .toast.success { border-left: 3px solid var(--accent); }
+  .toast.error { border-left: 3px solid #ef4444; }
+  .toast.info { border-left: 3px solid #3b82f6; }
+
+  /* Auth */
+  .auth-bg { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--primary); position: relative; overflow: hidden; }
+  .auth-bg::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 80% 60% at 60% 20%, rgba(22,199,154,0.12) 0%, transparent 70%), radial-gradient(ellipse 60% 50% at 20% 80%, rgba(247,151,30,0.08) 0%, transparent 70%); }
+  .auth-card { background: var(--surface); border-radius: 20px; padding: 44px 40px; width: 420px; max-width: 95vw; box-shadow: 0 32px 64px rgba(0,0,0,0.3); position: relative; z-index:1; animation: fadeIn 0.5s ease; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .brand-icon { width: 42px; height: 42px; background: linear-gradient(135deg, var(--accent), #0fa881); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .brand-name { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .brand-sub { font-size: 13px; color: var(--text2); margin-bottom: 32px; }
+  .auth-tabs { display: flex; gap: 2px; background: var(--surface3); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 28px; }
+  .auth-tab { flex: 1; padding: 8px; text-align: center; border-radius: 6px; font-size: 13.5px; font-weight: 500; cursor: pointer; border: none; background: none; color: var(--text2); transition: all 0.2s; }
+  .auth-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12.5px; font-weight: 500; color: var(--text2); margin-bottom: 6px; display: block; letter-spacing: 0.2px; }
+  .form-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border2); border-radius: var(--radius-sm); font-size: 14px; background: var(--surface2); color: var(--text); transition: all 0.2s; outline: none; }
+  .form-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(22,199,154,0.12); }
+  .form-input::placeholder { color: var(--text3); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0fa881; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(22,199,154,0.35); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1.5px solid var(--border2); }
+  .btn-secondary:hover { background: var(--surface3); }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-full { width: 100%; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .role-select { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .role-card { border: 2px solid var(--border2); border-radius: var(--radius-sm); padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .role-card:hover { border-color: var(--accent); }
+  .role-card.active { border-color: var(--accent); background: rgba(22,199,154,0.07); }
+  .role-card .role-icon { font-size: 24px; margin-bottom: 6px; }
+  .role-card .role-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .role-card .role-desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* Layout */
+  .app-layout { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+  .sidebar-header { padding: 22px 20px 16px; border-bottom: 1px solid var(--border); }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; }
+  .sidebar-nav { padding: 12px 10px; flex: 1; }
+  .nav-section { margin-bottom: 20px; }
+  .nav-section-label { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; padding: 0 10px; margin-bottom: 6px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.18s; font-size: 13.5px; color: var(--text2); font-weight: 500; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(22,199,154,0.12); color: var(--accent); }
+  .nav-item .nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 99px; }
+  .nav-item .nav-badge.urgent { background: #ef4444; }
+  .sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
+  .user-pill { display: flex; align-items: center; gap: 10px; }
+  .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #0fa881); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .user-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text2); }
+  .main { flex: 1; overflow-y: auto; background: var(--surface3); }
+  .page-header { padding: 28px 32px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .page-title { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+  .page-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .page-body { padding: 28px 32px; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); transition: box-shadow 0.2s; }
+  .stat-card:hover { box-shadow: var(--shadow); }
+  .stat-label { font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .stat-value { font-size: 30px; font-weight: 700; color: var(--text); letter-spacing: -1px; line-height: 1; }
+  .stat-change { font-size: 12px; color: var(--text2); margin-top: 6px; }
+  .stat-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+
+  /* Cards */
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-size: 14.5px; font-weight: 600; color: var(--text); }
+  .card-body { padding: 20px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead tr { border-bottom: 1.5px solid var(--border); }
+  th { padding: 10px 14px; text-align: left; font-size: 11.5px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface2); }
+  td { padding: 12px 14px; color: var(--text); vertical-align: middle; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+  .badge-pending { background: rgba(247,151,30,0.15); color: #b45309; }
+  .badge-progress { background: rgba(59,130,246,0.13); color: #1d4ed8; }
+  .badge-resolved { background: rgba(22,199,154,0.13); color: #0d7a5f; }
+  .badge-urgent { background: rgba(239,68,68,0.13); color: #b91c1c; }
+  .badge-roads { background: rgba(124,58,237,0.12); color: #5b21b6; }
+  .badge-sanitation { background: rgba(22,199,154,0.12); color: #0d7a5f; }
+  .badge-water { background: rgba(59,130,246,0.12); color: #1d4ed8; }
+  .badge-electricity { background: rgba(247,151,30,0.12); color: #92400e; }
+  .badge-other { background: rgba(100,116,139,0.12); color: #475569; }
+  [data-dark] .badge-pending { background: rgba(247,151,30,0.2); color: #fcd34d; }
+  [data-dark] .badge-progress { background: rgba(59,130,246,0.2); color: #93c5fd; }
+  [data-dark] .badge-resolved { background: rgba(22,199,154,0.2); color: #6ee7c1; }
+  [data-dark] .badge-urgent { background: rgba(239,68,68,0.2); color: #fca5a5; }
+
+  /* Priority dot */
+  .priority-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .priority-urgent { background: #ef4444; animation: pulse 1.5s infinite; }
+  .priority-high { background: #f97316; }
+  .priority-medium { background: #eab308; }
+  .priority-low { background: var(--accent); }
+
+  /* Form sections */
+  .form-section { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; margin-bottom: 20px; }
+  .form-section-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .form-full { grid-column: 1/-1; }
+  textarea.form-input { min-height: 100px; resize: vertical; }
+  select.form-input { cursor: pointer; }
+  .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 10px; }
+  .cat-card { border: 2px solid var(--border2); border-radius: var(--radius-sm); padding: 14px 12px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .cat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .cat-card.selected { border-color: var(--accent); background: rgba(22,199,154,0.07); }
+  .cat-icon { font-size: 26px; margin-bottom: 6px; }
+  .cat-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .cat-desc { font-size: 10.5px; color: var(--text2); margin-top: 2px; }
+  .image-upload { border: 2px dashed var(--border2); border-radius: var(--radius-sm); padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .image-upload:hover { border-color: var(--accent); background: rgba(22,199,154,0.03); }
+  .image-upload input { display: none; }
+  .image-preview-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .image-preview { position: relative; width: 72px; height: 72px; border-radius: 8px; overflow: hidden; }
+  .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .image-preview .remove-img { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; }
+  .tracking-id { font-family: var(--mono); font-size: 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; color: var(--accent); letter-spacing: 1px; }
+  
+  /* Status timeline */
+  .timeline { position: relative; padding-left: 24px; }
+  .timeline::before { content:''; position:absolute; left:7px; top:6px; bottom:6px; width:2px; background:var(--border); }
+  .timeline-item { position:relative; padding-bottom:20px; }
+  .timeline-item:last-child { padding-bottom:0; }
+  .timeline-dot { position:absolute; left:-24px; top:4px; width:16px; height:16px; border-radius:50%; border:2.5px solid var(--surface); display:flex; align-items:center; justify-content:center; }
+  .timeline-dot.done { background:var(--accent); }
+  .timeline-dot.active { background:#3b82f6; animation:pulse 1.5s infinite; }
+  .timeline-dot.pending { background:var(--border2); }
+  .timeline-date { font-size:11px; color:var(--text3); margin-bottom:2px; }
+  .timeline-title { font-size:13px; font-weight:600; color:var(--text); }
+  .timeline-desc { font-size:12px; color:var(--text2); margin-top:2px; }
+
+  /* Filters */
+  .filters-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+  .search-input-wrap { position:relative; flex:1; min-width:200px; }
+  .search-input-wrap input { width:100%; padding:9px 14px 9px 38px; border:1.5px solid var(--border2); border-radius:var(--radius-sm); font-size:13.5px; background:var(--surface); color:var(--text); outline:none; transition:all 0.2s; }
+  .search-input-wrap input:focus { border-color:var(--accent); }
+  .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text3); font-size:15px; }
+  .filter-select { padding:9px 12px; border:1.5px solid var(--border2); border-radius:var(--radius-sm); font-size:13px; background:var(--surface); color:var(--text); outline:none; cursor:pointer; }
+  .filter-select:focus { border-color:var(--accent); }
+
+  /* Mobile */
+  .hamburger { display:none; background:none; border:none; padding:8px; cursor:pointer; color:var(--text); font-size:20px; }
+  .overlay { display:none; }
+  @media (max-width:768px) {
+    :root { --sidebar-w: 280px; }
+    .sidebar { position:fixed; left:-100%; top:0; bottom:0; z-index:100; transition:left 0.3s; box-shadow:var(--shadow-lg); }
+    .sidebar.open { left:0; }
+    .hamburger { display:flex; align-items:center; justify-content:center; }
+    .overlay { display:block; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:99; backdrop-filter:blur(2px); }
+    .page-header { padding:18px 20px; }
+    .page-body { padding:18px 20px; }
+    .form-grid, .form-grid-3 { grid-template-columns:1fr; }
+    .stats-grid { grid-template-columns:1fr 1fr; }
+    .auth-card { padding:32px 24px; }
+  }
+  @media (max-width:480px) {
+    .stats-grid { grid-template-columns:1fr; }
+    .category-grid { grid-template-columns:1fr 1fr; }
+  }
+
+  /* Empty state */
+  .empty-state { text-align:center; padding:56px 24px; }
+  .empty-icon { font-size:48px; margin-bottom:16px; opacity:0.5; }
+  .empty-title { font-size:16px; font-weight:600; color:var(--text); margin-bottom:6px; }
+  .empty-desc { font-size:13px; color:var(--text2); }
+
+  /* Modal */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(4px); animation:fadeIn 0.2s ease; }
+  .modal { background:var(--surface); border-radius:var(--radius); width:620px; max-width:100%; max-height:85vh; overflow-y:auto; box-shadow:var(--shadow-lg); }
+  .modal-header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .modal-title { font-size:16px; font-weight:700; color:var(--text); }
+  .modal-body { padding:24px; }
+  .modal-footer { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
+  .close-btn { background:none; border:none; cursor:pointer; color:var(--text2); font-size:20px; padding:4px; border-radius:6px; }
+  .close-btn:hover { background:var(--surface2); color:var(--text); }
+
+  /* Spinner */
+  .spinner { width:18px; height:18px; border:2.5px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
+  .spinner-dark { border-color:rgba(0,0,0,0.15); border-top-color:var(--text2); }
+
+  /* Toggle dark mode */
+  .dark-toggle { background:var(--surface2); border:1.5px solid var(--border2); border-radius:99px; padding:5px 10px; cursor:pointer; font-size:16px; display:flex; align-items:center; gap:6px; transition:all 0.2s; color:var(--text); }
+  .dark-toggle:hover { border-color:var(--accent); }
+
+  .text-accent { color: var(--accent); }
+  .text-muted { color: var(--text2); font-size: 13px; }
+  .mt-1 { margin-top:4px; }
+  .mt-2 { margin-top:8px; }
+  .mt-3 { margin-top:16px; }
+  .flex { display:flex; }
+  .items-center { align-items:center; }
+  .gap-2 { gap:8px; }
+  .gap-3 { gap:12px; }
+  .ml-auto { margin-left:auto; }
+  .w-full { width:100%; }
+  .chart-wrap { height:240px; position:relative; }
+  .divider { height:1px; background:var(--border); margin:16px 0; }
+  .tag { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; padding:3px 9px; border-radius:6px; background:var(--surface2); color:var(--text2); border:1px solid var(--border); }
+  .progress-bar { height:6px; background:var(--surface3); border-radius:99px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:99px; background:var(--accent); transition:width 0.5s ease; }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media(max-width:900px) { .two-col { grid-template-columns:1fr; } }
+  .remark-item { background:var(--surface2); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:8px; }
+  .remark-meta { font-size:11px; color:var(--text3); margin-top:4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, createContext, useContext } = React;
+
+// ─── Mock Data ─────────────────────────────────────────────────────
+const STATES = ["Telangana","Maharashtra","Karnataka","Tamil Nadu","Delhi","Uttar Pradesh","Gujarat","Rajasthan"];
+const DISTRICTS = {
+  "Telangana": ["Hyderabad","Rangareddy","Medchal","Nalgonda","Warangal","Khammam"],
+  "Maharashtra": ["Mumbai","Pune","Nagpur","Nashik","Aurangabad"],
+  "Karnataka": ["Bengaluru","Mysuru","Hubballi","Mangaluru","Belagavi"],
+  "Tamil Nadu": ["Chennai","Coimbatore","Madurai","Salem","Tiruchirappalli"],
+  "Delhi": ["Central Delhi","North Delhi","South Delhi","East Delhi","West Delhi"],
+  "Uttar Pradesh": ["Lucknow","Kanpur","Agra","Varanasi","Allahabad"],
+  "Gujarat": ["Ahmedabad","Surat","Vadodara","Rajkot","Bhavnagar"],
+  "Rajasthan": ["Jaipur","Jodhpur","Udaipur","Kota","Ajmer"],
+};
+const AREAS = {
+  "Hyderabad": ["Banjara Hills","Jubilee Hills","Hitech City","Gachibowli","Kukatpally","LB Nagar","Dilsukhnagar","Ameerpet"],
+  "Mumbai": ["Andheri","Bandra","Dadar","Kurla","Borivali","Thane"],
+  "default": ["Area 1","Area 2","Area 3","Area 4","Area 5"]
+};
+const CATEGORIES = [
+  {id:"roads", name:"Roads", icon:"🛣️", desc:"Potholes, damage", dept:"PWD Dept", color:"#7c3aed"},
+  {id:"sanitation", name:"Sanitation", icon:"🗑️", desc:"Garbage, cleanliness", dept:"GHMC", color:"#16c79a"},
+  {id:"water", name:"Water", icon:"💧", desc:"Leakage, supply", dept:"HMWSSB", color:"#3b82f6"},
+  {id:"electricity", name:"Electricity", icon:"💡", desc:"Streetlights, wires", dept:"TSSPDCL", color:"#f7971e"},
+  {id:"drainage", name:"Drainage", icon:"🚰", desc:"Blocked drains", dept:"Drainage Dept", color:"#ec4899"},
+  {id:"parks", name:"Parks", icon:"🌳", desc:"Maintenance", dept:"Parks Dept", color:"#22c55e"},
+  {id:"noise", name:"Noise", icon:"📢", desc:"Noise pollution", dept:"Police/CPCB", color:"#f43f5e"},
+  {id:"other", name:"Other", icon:"📋", desc:"Miscellaneous", dept:"Municipal Corp", color:"#64748b"},
+];
+const OFFICERS = [
+  {id:1, name:"Rajesh Kumar", dept:"PWD Dept"},
+  {id:2, name:"Sunita Sharma", dept:"GHMC"},
+  {id:3, name:"Pradeep Nair", dept:"HMWSSB"},
+  {id:4, name:"Anita Rao", dept:"TSSPDCL"},
+  {id:5, name:"Venkat Reddy", dept:"GHMC"},
+];
+
+const genId = () => 'CMP-' + Math.random().toString(36).substr(2,6).toUpperCase();
+const fmtDate = d => new Date(d).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'});
+const fmtTime = d => new Date(d).toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+
+const INITIAL_COMPLAINTS = [
+  {id:genId(),title:"Large pothole near signal",category:"roads",state:"Telangana",district:"Hyderabad",area:"Banjara Hills",description:"Dangerous pothole near traffic signal causing accidents",status:"In Progress",priority:"urgent",userId:2,assignedOfficer:1,assignedDept:"PWD Dept",createdAt:new Date(Date.now()-7*86400000).toISOString(),updatedAt:new Date(Date.now()-2*86400000).toISOString(),images:[],remarks:[{text:"Officer dispatched",author:"Admin",at:new Date(Date.now()-2*86400000).toISOString()}]},
+  {id:genId(),title:"Garbage overflow at corner",category:"sanitation",state:"Telangana",district:"Hyderabad",area:"Kukatpally",description:"Garbage bins overflowing for 3 days",status:"Pending",priority:"high",userId:2,assignedOfficer:null,assignedDept:"GHMC",createdAt:new Date(Date.now()-2*86400000).toISOString(),updatedAt:new Date(Date.now()-2*86400000).toISOString(),images:[],remarks:[]},
+  {id:genId(),title:"Street light not working",category:"electricity",state:"Telangana",district:"Hyderabad",area:"Gachibowli",description:"3 consecutive street lights not working since a week",status:"Resolved",priority:"medium",userId:2,assignedOfficer:4,assignedDept:"TSSPDCL",createdAt:new Date(Date.now()-15*86400000).toISOString(),updatedAt:new Date(Date.now()-1*86400000).toISOString(),images:[],remarks:[{text:"Issue resolved, lights replaced",author:"Anita Rao",at:new Date(Date.now()-1*86400000).toISOString()}]},
+  {id:genId(),title:"Water leakage on main road",category:"water",state:"Maharashtra",district:"Mumbai",area:"Andheri",description:"Major water pipe leakage wasting thousands of liters",status:"In Progress",priority:"urgent",userId:3,assignedOfficer:3,assignedDept:"HMWSSB",createdAt:new Date(Date.now()-4*86400000).toISOString(),updatedAt:new Date(Date.now()-1*86400000).toISOString(),images:[],remarks:[]},
+  {id:genId(),title:"Broken park bench",category:"parks",state:"Telangana",district:"Hyderabad",area:"Jubilee Hills",description:"Multiple benches in the park are broken",status:"Pending",priority:"low",userId:2,assignedOfficer:null,assignedDept:"Parks Dept",createdAt:new Date(Date.now()-1*86400000).toISOString(),updatedAt:new Date(Date.now()-1*86400000).toISOString(),images:[],remarks:[]},
+];
+
+const INITIAL_USERS = [
+  {id:1,name:"Admin Officer",email:"admin@civic.gov",password:"admin123",role:"admin",phone:"9000000001",district:"Hyderabad",registeredAt:new Date().toISOString()},
+  {id:2,name:"Ravi Shankar",email:"ravi@gmail.com",password:"ravi123",role:"citizen",phone:"9000000002",district:"Hyderabad",registeredAt:new Date().toISOString()},
+  {id:3,name:"Priya Mehta",email:"priya@gmail.com",password:"priya123",role:"citizen",phone:"9000000003",district:"Mumbai",registeredAt:new Date().toISOString()},
+];
+
+// ─── API Client & Translators ────────────────────────────────────────
+const API_BASE = 'http://localhost:5000/api';
+
+const api = {
+  getToken: () => localStorage.getItem('token'),
+  setToken: (token) => localStorage.setItem('token', token),
+  clearToken: () => localStorage.removeItem('token'),
+  getHeaders: () => {
+    const token = localStorage.getItem('token');
+    return token ? {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    } : {
+      'Content-Type': 'application/json'
+    };
+  },
+  async request(endpoint, options = {}) {
+    const headers = options.body instanceof FormData 
+      ? { 'Authorization': `Bearer ${this.getToken()}` }
+      : { ...this.getHeaders(), ...options.headers };
+    
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
+    
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(err.error || 'Request failed');
+    }
+    return response.json();
+  }
+};
+
+const mapUserToFrontend = (u) => {
+  if (!u) return null;
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    phone: u.phone,
+    district: u.district,
+    state: u.state,
+    isActive: u.is_active,
+    registeredAt: u.created_at
+  };
+};
+
+const mapComplaintToFrontend = (c) => {
+  if (!c) return null;
+  return {
+    id: c.id,
+    title: c.title,
+    category: c.category,
+    state: c.state,
+    district: c.district,
+    area: c.area,
+    description: c.description,
+    status: c.status,
+    priority: c.priority,
+    userId: c.user_id,
+    userName: c.user_name,
+    assignedDept: c.assigned_dept,
+    assignedOfficer: c.assigned_officer ? c.assigned_officer.id : null,
+    images: c.images ? c.images.map(img => img.startsWith('http') || img.startsWith('data:') ? img : `http://localhost:5000/uploads/${img}`) : [],
+    remarks: c.remarks ? c.remarks.map(r => ({
+      text: r.text,
+      author: r.author,
+      at: r.created_at
+    })) : [],
+    createdAt: c.created_at,
+    updatedAt: c.updated_at
+  };
+};
+
+const mapOfficerToFrontend = (o) => {
+  if (!o) return null;
+  return {
+    id: o.id,
+    name: o.name,
+    dept: o.department,
+    email: o.email,
+    phone: o.phone,
+    district: o.district
+  };
+};
+
+// ─── App Context ────────────────────────────────────────────────────
+const AppCtx = createContext(null);
+const useApp = () => useContext(AppCtx);
+
+// ─── Toast ─────────────────────────────────────────────────────────
+function ToastContainer({ toasts }) {
+  return (
+    <div className="toast-container">
+      {toasts.map(t => (
+        <div key={t.id} className={`toast ${t.type}`}>
+          <span>{t.type==='success'?'✓':t.type==='error'?'✗':'ℹ'}</span>
+          <span>{t.msg}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Icons ─────────────────────────────────────────────────────────
+const Icon = ({n,style}) => <span style={{fontSize:16,...style}}>{n}</span>;
+
+// ─── Auth Page ─────────────────────────────────────────────────────
+function AuthPage() {
+  const {setCurrentUser,showToast} = useApp();
+  const [tab,setTab] = useState('login');
+  const [role,setRole] = useState('citizen');
+  const [form,setForm] = useState({name:'',email:'',password:'',phone:'',district:''});
+  const [loading,setLoading] = useState(false);
+
+  const handleLogin = async e => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = await api.request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: form.email, password: form.password })
+      });
+      api.setToken(data.token);
+      setCurrentUser(mapUserToFrontend(data.user));
+      showToast(`Welcome back, ${data.user.name}!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Invalid email or password', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async e => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = await api.request('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          role: role,
+          phone: form.phone,
+          district: form.district || 'Hyderabad',
+          state: 'Telangana'
+        })
+      });
+      api.setToken(data.token);
+      setCurrentUser(mapUserToFrontend(data.user));
+      showToast(`Account created! Welcome, ${data.user.name}!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Registration failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-bg">
+      <div className="auth-card fade-in">
+        <div className="brand">
+          <div className="brand-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></div>
+          <div className="brand-name">CivicPulse</div>
+        </div>
+        <div className="brand-sub">Smart Civic Complaint Management System</div>
+        <div className="auth-tabs">
+          <button className={`auth-tab ${tab==='login'?'active':''}`} onClick={()=>setTab('login')}>Sign In</button>
+          <button className={`auth-tab ${tab==='register'?'active':''}`} onClick={()=>setTab('register')}>Register</button>
+        </div>
+
+        {tab==='login' ? (
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label className="form-label">Email address</label>
+              <input className="form-input" type="email" placeholder="you@example.com" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input className="form-input" type="password" placeholder="Your password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required/>
+            </div>
+            <div style={{fontSize:11.5,color:'var(--text3)',marginBottom:16}}>
+              Demo: <strong>admin@civic.gov / admin123</strong> (Admin) or <strong>ravi@gmail.com / ravi123</strong> (Citizen)
+            </div>
+            <button className="btn btn-primary btn-full" type="submit" disabled={loading}>
+              {loading ? <span className="spinner"/> : 'Sign In →'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleRegister}>
+            <div className="role-select">
+              <div className={`role-card ${role==='citizen'?'active':''}`} onClick={()=>setRole('citizen')}>
+                <div className="role-icon">👤</div>
+                <div className="role-name">Citizen</div>
+                <div className="role-desc">Report issues</div>
+              </div>
+              <div className={`role-card ${role==='admin'?'active':''}`} onClick={()=>setRole('admin')}>
+                <div className="role-icon">🏛️</div>
+                <div className="role-name">Admin</div>
+                <div className="role-desc">Manage complaints</div>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
+              <input className="form-input" placeholder="Rajesh Kumar" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" placeholder="you@example.com" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Phone</label>
+              <input className="form-input" placeholder="9XXXXXXXXX" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} required/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input className="form-input" type="password" placeholder="Min 6 characters" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} minLength={6} required/>
+            </div>
+            <button className="btn btn-primary btn-full" type="submit" disabled={loading}>
+              {loading ? <span className="spinner"/> : 'Create Account →'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Sidebar ────────────────────────────────────────────────────────
+function Sidebar({open,setOpen}) {
+  const {currentUser,setCurrentUser,page,setPage,complaints,dark,setDark} = useApp();
+  const pendingCount = complaints.filter(c=>c.status==='Pending').length;
+  const urgentCount = complaints.filter(c=>c.priority==='urgent'&&c.status!=='Resolved').length;
+  const myComplaints = complaints.filter(c=>c.userId===currentUser.id);
+
+  const citizenNav = [
+    {id:'dashboard',icon:'🏠',label:'Dashboard'},
+    {id:'submit',icon:'➕',label:'Report Issue'},
+    {id:'my-complaints',icon:'📋',label:'My Complaints', badge: myComplaints.length || null},
+    {id:'track',icon:'🔍',label:'Track Complaint'},
+  ];
+  const adminNav = [
+    {id:'admin-dashboard',icon:'📊',label:'Dashboard'},
+    {id:'all-complaints',icon:'📋',label:'All Complaints', badge: pendingCount || null},
+    {id:'urgent',icon:'🚨',label:'Urgent Issues', badge: urgentCount || null, badgeClass:'urgent'},
+    {id:'officers',icon:'👮',label:'Officers'},
+    {id:'analytics',icon:'📈',label:'Analytics'},
+  ];
+  const nav = currentUser.role==='admin' ? adminNav : citizenNav;
+
+  const go = id => { setPage(id); setOpen(false); };
+
+  return (
+    <>
+      {open && <div className="overlay" onClick={()=>setOpen(false)}/>}
+      <div className={`sidebar ${open?'open':''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <div className="brand-icon" style={{width:34,height:34,flexShrink:0}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+            <div>
+              <div style={{fontSize:14,fontWeight:700,letterSpacing:-0.3}}>CivicPulse</div>
+              <div style={{fontSize:10.5,color:'var(--text3)'}}>v2.0 — {currentUser.role==='admin'?'Admin Portal':'Citizen Portal'}</div>
+            </div>
+          </div>
+        </div>
+        <div className="sidebar-nav">
+          <div className="nav-section">
+            <div className="nav-section-label">{currentUser.role==='admin'?'Administration':'Navigation'}</div>
+            {nav.map(item=>(
+              <button key={item.id} className={`nav-item ${page===item.id?'active':''}`} onClick={()=>go(item.id)}>
+                <span style={{fontSize:16}}>{item.icon}</span>
+                <span>{item.label}</span>
+                {item.badge ? <span className={`nav-badge ${item.badgeClass||''}`}>{item.badge}</span> : null}
+              </button>
+            ))}
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-label">Preferences</div>
+            <div className="nav-item" onClick={()=>setDark(!dark)} style={{cursor:'pointer'}}>
+              <span style={{fontSize:16}}>{dark?'☀️':'🌙'}</span>
+              <span>{dark?'Light Mode':'Dark Mode'}</span>
+            </div>
+          </div>
+        </div>
+        <div className="sidebar-footer">
+          <div className="user-pill">
+            <div className="user-avatar">{currentUser.name.split(' ').map(w=>w[0]).join('').substring(0,2)}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div className="user-name" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{currentUser.name}</div>
+              <div className="user-role">{currentUser.role==='admin'?'🏛️ Admin Officer':'👤 Citizen'}</div>
+            </div>
+            <button className="btn btn-secondary" style={{padding:'6px 10px',fontSize:12}} onClick={()=>{setCurrentUser(null);}}>Out</button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Citizen Dashboard ──────────────────────────────────────────────
+function CitizenDashboard() {
+  const {complaints,currentUser,setPage} = useApp();
+  const mine = complaints.filter(c=>c.userId===currentUser.id);
+  const pending = mine.filter(c=>c.status==='Pending').length;
+  const progress = mine.filter(c=>c.status==='In Progress').length;
+  const resolved = mine.filter(c=>c.status==='Resolved').length;
+  const chartRef = useRef();
+  const chartInst = useRef();
+
+  useEffect(()=>{
+    if(!chartRef.current) return;
+    if(chartInst.current) chartInst.current.destroy();
+    const catCounts = CATEGORIES.map(c=>mine.filter(m=>m.category===c.id).length);
+    chartInst.current = new Chart(chartRef.current, {
+      type:'doughnut',
+      data:{
+        labels: CATEGORIES.map(c=>c.name),
+        datasets:[{data:catCounts,backgroundColor:CATEGORIES.map(c=>c.color+'cc'),borderWidth:0,hoverOffset:4}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{family:'Sora',size:11},padding:10}}}}
+    });
+    return ()=>chartInst.current?.destroy();
+  },[mine.length]);
+
+  return (
+    <div className="fade-in">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Welcome back, {currentUser.name.split(' ')[0]} 👋</div>
+          <div className="page-sub">Here's an overview of your civic reports</div>
+        </div>
+        <button className="btn btn-primary" onClick={()=>setPage('submit')}>➕ Report Issue</button>
+      </div>
+      <div className="page-body">
+        <div className="stats-grid">
+          {[
+            {label:'Total Reports',value:mine.length,icon:'📋',color:'#3b82f6'},
+            {label:'Pending',value:pending,icon:'⏳',color:'#f7971e'},
+            {label:'In Progress',value:progress,icon:'🔄',color:'#8b5cf6'},
+            {label:'Resolved',value:resolved,icon:'✅',color:'#16c79a'},
+          ].map(s=>(
+            <div className="stat-card" key={s.label}>
+              <div className="stat-icon" style={{background:s.color+'18'}}><span style={{fontSize:18}}>{s.icon}</span></div>
+              <div className="stat-value" style={{color:s.color}}>{s.value}</div>
+              <div className="stat-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="two-col">
+          <div className="card">
+            <div className="card-header"><div className="card-title">Recent Reports</div><button className="btn btn-secondary" style={{fontSize:12,padding:'5px 12px'}} onClick={()=>setPage('my-complaints')}>View All</button></div>
+            <div>
+              {mine.length===0 ? (
+                <div className="empty-state"><div className="empty-icon">📭</div><div className="empty-title">No complaints yet</div><div className="empty-desc">Report your first civic issue</div></div>
+              ) : mine.slice(0,4).map(c=>(
+                <div key={c.id} style={{padding:'13px 20px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'flex-start',gap:12}}>
+                  <div style={{fontSize:20}}>{CATEGORIES.find(x=>x.id===c.category)?.icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13.5,fontWeight:600,color:'var(--text)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.title}</div>
+                    <div style={{fontSize:11.5,color:'var(--text2)',marginTop:2}}>{c.district} · {fmtDate(c.createdAt)}</div>
+                  </div>
+                  <StatusBadge status={c.status}/>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-header"><div className="card-title">Complaints by Category</div></div>
+            <div className="card-body">
+              {mine.length===0 ? <div className="empty-state"><div className="empty-icon">📊</div><div className="empty-title">No data yet</div></div> : <div className="chart-wrap"><canvas ref={chartRef}/></div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Status Badge ───────────────────────────────────────────────────
+function StatusBadge({status}) {
+  const cls = status==='Pending'?'badge-pending':status==='In Progress'?'badge-progress':'badge-resolved';
+  const icon = status==='Pending'?'⏳':status==='In Progress'?'🔄':'✅';
+  return <span className={`badge ${cls}`}>{icon} {status}</span>;
+}
+
+function CatBadge({cat}) {
+  const c = CATEGORIES.find(x=>x.id===cat);
+  return <span className={`badge badge-${cat==='other'?'other':cat}`}>{c?.icon} {c?.name||cat}</span>;
+}
+
+function PriorityBadge({p}) {
+  const cls = p==='urgent'?'badge-urgent':'';
+  const icon = p==='urgent'?'🚨':p==='high'?'🔴':p==='medium'?'🟡':'🟢';
+  return <span className={`badge ${cls}`}>{icon} {p.charAt(0).toUpperCase()+p.slice(1)}</span>;
+}
+
+// ─── Submit Complaint ───────────────────────────────────────────────
+function SubmitComplaint() {
+  const {currentUser,addComplaint,showToast,setPage} = useApp();
+  const [form,setForm] = useState({title:'',category:'',state:'',district:'',area:'',description:'',priority:'medium'});
+  const [images,setImages] = useState([]);
+  const [submitted,setSubmitted] = useState(null);
+  const [loading,setLoading] = useState(false);
+  const fileRef = useRef();
+
+  const districts = DISTRICTS[form.state]||[];
+  const areas = AREAS[form.district]||AREAS['default'];
+  const catInfo = CATEGORIES.find(c=>c.id===form.category);
+
+  const handleImages = e => {
+    const files = Array.from(e.target.files);
+    files.forEach(f=>{
+      const reader = new FileReader();
+      reader.onload = ev => setImages(prev=>[...prev,{url:ev.target.result,name:f.name,file:f}]);
+      reader.readAsDataURL(f);
+    });
+  };
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    if(!form.category){showToast('Please select a category','error');return;}
+    if(!form.state||!form.district){showToast('Please select location','error');return;}
+    setLoading(true);
+    try {
+      const response = await api.request('/complaints', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: form.title,
+          description: form.description,
+          category: form.category,
+          state: form.state,
+          district: form.district,
+          area: form.area,
+          priority: form.priority
+        })
+      });
+
+      const newCid = response.id;
+
+      // Upload images if any
+      for (const img of images) {
+        if (img.file) {
+          const formData = new FormData();
+          formData.append('file', img.file);
+          await api.request(`/complaints/${newCid}/images`, {
+            method: 'POST',
+            body: formData
+          });
+        }
+      }
+
+      // Fetch fresh representation from server to include uploaded photos
+      const freshComplaint = await api.request(`/complaints/${newCid}`);
+      const mapped = mapComplaintToFrontend(freshComplaint);
+
+      addComplaint(mapped);
+      setSubmitted(mapped);
+      showToast(`Complaint ${newCid} submitted successfully!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Error submitting complaint', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if(submitted) return (
+    <div className="fade-in">
+      <div className="page-header"><div><div className="page-title">Complaint Submitted ✅</div><div className="page-sub">Your complaint has been registered</div></div></div>
+      <div className="page-body">
+        <div style={{maxWidth:580,margin:'0 auto'}}>
+          <div className="card" style={{textAlign:'center',padding:'40px 32px'}}>
+            <div style={{fontSize:52,marginBottom:16}}>🎉</div>
+            <div style={{fontSize:18,fontWeight:700,color:'var(--text)',marginBottom:8}}>Complaint Registered!</div>
+            <div style={{fontSize:13,color:'var(--text2)',marginBottom:24}}>Your tracking ID is:</div>
+            <div className="tracking-id" style={{display:'inline-block',marginBottom:24,fontSize:18,padding:'10px 24px'}}>{submitted.id}</div>
+            <div style={{background:'var(--surface2)',borderRadius:'var(--radius-sm)',padding:'16px',marginBottom:24,textAlign:'left'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:12,color:'var(--text2)'}}>Category</span><CatBadge cat={submitted.category}/></div>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:12,color:'var(--text2)'}}>Department</span><span style={{fontSize:13,fontWeight:500}}>{submitted.assignedDept}</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:12,color:'var(--text2)'}}>Location</span><span style={{fontSize:13,fontWeight:500}}>{submitted.district}, {submitted.state}</span></div>
+              <div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontSize:12,color:'var(--text2)'}}>Status</span><StatusBadge status="Pending"/></div>
+            </div>
+            <div style={{display:'flex',gap:12,justifyContent:'center'}}>
+              <button className="btn btn-primary" onClick={()=>{setSubmitted(null);setForm({title:'',category:'',state:'',district:'',area:'',description:'',priority:'medium'});setImages([]);}}>Submit Another</button>
+              <button className="btn btn-secondary" onClick={()=>setPage('my-complaints')}>View My Complaints</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fade-in">
+      <div className="page-header"><div><div className="page-title">Report an Issue 📍</div><div className="page-sub">Fill in the details to register your civic complaint</div></div></div>
+      <div className="page-body">
+        <form onSubmit={handleSubmit} style={{maxWidth:760}}>
+          <div className="form-section">
+            <div className="form-section-title">📂 Select Category</div>
+            <div className="category-grid">
+              {CATEGORIES.map(c=>(
+                <div key={c.id} className={`cat-card ${form.category===c.id?'selected':''}`} onClick={()=>setForm({...form,category:c.id})}>
+                  <div className="cat-icon">{c.icon}</div>
+                  <div className="cat-name">{c.name}</div>
+                  <div className="cat-desc">{c.desc}</div>
+                  {form.category===c.id && <div style={{fontSize:10.5,color:'var(--accent)',marginTop:4,fontWeight:600}}>→ {c.dept}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-section">
+            <div className="form-section-title">📝 Complaint Details</div>
+            <div className="form-grid">
+              <div className="form-group form-full">
+                <label className="form-label">Issue Title *</label>
+                <input className="form-input" placeholder="Brief description of the issue" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} required/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Priority Level</label>
+                <select className="form-input" value={form.priority} onChange={e=>setForm({...form,priority:e.target.value})}>
+                  <option value="low">🟢 Low</option>
+                  <option value="medium">🟡 Medium</option>
+                  <option value="high">🔴 High</option>
+                  <option value="urgent">🚨 Urgent</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Detailed Description *</label>
+              <textarea className="form-input" placeholder="Describe the issue in detail — how long it has existed, severity, impact on residents, etc." value={form.description} onChange={e=>setForm({...form,description:e.target.value})} required style={{minHeight:110}}/>
+            </div>
+          </div>
+
+          <div className="form-section">
+            <div className="form-section-title">📍 Location Details</div>
+            <div className="form-grid-3">
+              <div className="form-group">
+                <label className="form-label">State *</label>
+                <select className="form-input" value={form.state} onChange={e=>setForm({...form,state:e.target.value,district:'',area:''})} required>
+                  <option value="">Select State</option>
+                  {STATES.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">District *</label>
+                <select className="form-input" value={form.district} onChange={e=>setForm({...form,district:e.target.value,area:''})} required disabled={!form.state}>
+                  <option value="">Select District</option>
+                  {districts.map(d=><option key={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Area / Locality</label>
+                <select className="form-input" value={form.area} onChange={e=>setForm({...form,area:e.target.value})} disabled={!form.district}>
+                  <option value="">Select Area</option>
+                  {areas.map(a=><option key={a}>{a}</option>)}
+                </select>
+              </div>
+            </div>
+            {catInfo && (
+              <div style={{background:'rgba(22,199,154,0.08)',border:'1px solid rgba(22,199,154,0.25)',borderRadius:8,padding:'10px 14px',fontSize:13,color:'var(--accent)',display:'flex',alignItems:'center',gap:8}}>
+                <span>⚡</span> Auto-routing: Will be assigned to <strong>{catInfo.dept}</strong>
+              </div>
+            )}
+          </div>
+
+          <div className="form-section">
+            <div className="form-section-title">📸 Upload Photos (Optional)</div>
+            <div className="image-upload" onClick={()=>fileRef.current.click()}>
+              <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImages}/>
+              <div style={{fontSize:32,marginBottom:8}}>📷</div>
+              <div style={{fontSize:13.5,fontWeight:500,color:'var(--text)'}}>Click to upload images</div>
+              <div style={{fontSize:12,color:'var(--text2)',marginTop:4}}>JPG, PNG up to 10MB each · Multiple allowed</div>
+            </div>
+            {images.length>0 && (
+              <div className="image-preview-grid">
+                {images.map((img,i)=>(
+                  <div key={i} className="image-preview">
+                    <img src={img.url} alt={img.name}/>
+                    <button className="remove-img" type="button" onClick={()=>setImages(imgs=>imgs.filter((_,j)=>j!==i))}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{display:'flex',gap:12}}>
+            <button className="btn btn-primary" type="submit" disabled={loading} style={{minWidth:160}}>
+              {loading ? <><span className="spinner"/> Submitting...</> : '🚀 Submit Complaint'}
+            </button>
+            <button className="btn btn-secondary" type="button" onClick={()=>setForm({title:'',category:'',state:'',district:'',area:'',description:'',priority:'medium'})}>Reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── My Complaints ──────────────────────────────────────────────────
+function MyComplaints() {
+  const {complaints,currentUser} = useApp();
+  const [filter,setFilter] = useState('all');
+  const [search,setSearch] = useState('');
+  const [selected,setSelected] = useState(null);
+  const mine = complaints.filter(c=>c.userId===currentUser.id);
+  const filtered = mine.filter(c=>{
+    const matchStatus = filter==='all'||c.status===filter;
+    const matchSearch = c.title.toLowerCase().includes(search.toLowerCase())||c.id.toLowerCase().includes(search.toLowerCase());
+    return matchStatus&&matchSearch;
+  });
+
+  return (
+    <div className="fade-in">
+      <div className="page-header"><div><div className="page-title">My Complaints 📋</div><div className="page-sub">{mine.length} total complaints registered</div></div></div>
+      <div className="page-body">
+        <div className="filters-bar">
+          <div className="search-input-wrap">
+            <span className="search-icon">🔍</span>
+            <input placeholder="Search by title or ID..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          </div>
+          {['all','Pending','In Progress','Resolved'].map(s=>(
+            <button key={s} className={`btn ${filter===s?'btn-primary':'btn-secondary'}`} style={{fontSize:12.5}} onClick={()=>setFilter(s)}>{s==='all'?'All':s}</button>
+          ))}
+        </div>
+        {filtered.length===0 ? <div className="empty-state"><div className="empty-icon">🔍</div><div className="empty-title">No complaints found</div><div className="empty-desc">Try adjusting your filters</div></div> : (
+          <div className="card">
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Location</th><th>Priority</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+                <tbody>
+                  {filtered.map(c=>(
+                    <tr key={c.id}>
+                      <td><span className="tracking-id" style={{fontSize:11.5,padding:'3px 8px'}}>{c.id}</span></td>
+                      <td><div style={{fontWeight:500,maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.title}</div><div style={{fontSize:11.5,color:'var(--text2)'}}>{c.assignedDept}</div></td>
+                      <td><CatBadge cat={c.category}/></td>
+                      <td><div style={{fontSize:13}}>{c.district}</div><div style={{fontSize:11.5,color:'var(--text2)'}}>{c.state}</div></td>
+                      <td><PriorityBadge p={c.priority}/></td>
+                      <td><StatusBadge status={c.status}/></td>
+                      <td style={{fontSize:12.5,color:'var(--text2)'}}>{fmtDate(c.createdAt)}</td>
+                      <td><button className="btn btn-secondary" style={{fontSize:12,padding:'5px 12px'}} onClick={()=>setSelected(c)}>View</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+      {selected && <ComplaintDetailModal complaint={selected} onClose={()=>setSelected(null)} readOnly/>}
+    </div>
+  );
+}
+
+// ─── Track Complaint ────────────────────────────────────────────────
+function TrackComplaint() {
+  const [trackId,setTrackId] = useState('');
+  const [found,setFound] = useState(null);
+  const [notFound,setNotFound] = useState(false);
+
+  const track = async () => {
+    try {
+      const c = await api.request(`/complaints/${trackId.trim()}`);
+      setFound(mapComplaintToFrontend(c));
+      setNotFound(false);
+    } catch (err) {
+      setFound(null);
+      setNotFound(true);
+    }
+  };
+
+  const statusSteps = ['Pending','In Progress','Resolved'];
+  const stepIdx = found ? statusSteps.indexOf(found.status) : -1;
+
+  return (
+    <div className="fade-in">
+      <div className="page-header"><div><div className="page-title">Track Complaint 🔍</div><div className="page-sub">Enter your tracking ID to check status</div></div></div>
+      <div className="page-body">
+        <div style={{maxWidth:600}}>
+          <div className="card" style={{padding:24,marginBottom:20}}>
+            <div style={{display:'flex',gap:12}}>
+              <input className="form-input" placeholder="Enter tracking ID (e.g. CMP-ABC123)" value={trackId} onChange={e=>setTrackId(e.target.value)} style={{flex:1}} onKeyDown={e=>e.key==='Enter'&&track()}/>
+              <button className="btn btn-primary" onClick={track}>Track →</button>
+            </div>
+          </div>
+
+          {notFound && <div style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:10,padding:'16px 20px',color:'#b91c1c',fontSize:13.5}}>❌ No complaint found with ID <strong>{trackId}</strong></div>}
+          
+          {found && (
+            <div className="card fade-in">
+              <div style={{padding:'20px 24px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div>
+                  <div style={{fontSize:16,fontWeight:700,color:'var(--text)',marginBottom:4}}>{found.title}</div>
+                  <div className="tracking-id">{found.id}</div>
+                </div>
+                <StatusBadge status={found.status}/>
+              </div>
+              <div style={{padding:24}}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:24}}>
+                  {[
+                    {l:'Category',v:<CatBadge cat={found.category}/>},
+                    {l:'Department',v:found.assignedDept},
+                    {l:'Location',v:`${found.district}, ${found.state}`},
+                    {l:'Filed On',v:fmtDate(found.createdAt)},
+                  ].map(({l,v})=>(
+                    <div key={l}><div style={{fontSize:11,color:'var(--text2)',textTransform:'uppercase',letterSpacing:0.5,marginBottom:4}}>{l}</div><div style={{fontSize:13.5,fontWeight:500}}>{v}</div></div>
+                  ))}
+                </div>
+                
+                <div style={{marginBottom:24}}>
+                  <div style={{fontSize:13,fontWeight:600,color:'var(--text)',marginBottom:12}}>Progress Timeline</div>
+                  <div style={{display:'flex',gap:0}}>
+                    {statusSteps.map((s,i)=>(
+                      <div key={s} style={{flex:1,textAlign:'center',position:'relative'}}>
+                        {i<statusSteps.length-1 && <div style={{position:'absolute',top:14,left:'50%',right:0,height:3,background:i<stepIdx?'var(--accent)':'var(--border)',transition:'background 0.5s',zIndex:0}}/>}
+                        <div style={{width:28,height:28,borderRadius:'50%',background:i<=stepIdx?'var(--accent)':'var(--border)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 8px',fontSize:13,position:'relative',zIndex:1,transition:'background 0.5s'}}>{i<stepIdx?'✓':i===stepIdx?'●':''}</div>
+                        <div style={{fontSize:11.5,fontWeight:600,color:i<=stepIdx?'var(--accent)':'var(--text2)'}}>{s}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {found.remarks.length>0 && (
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:'var(--text)',marginBottom:10}}>Remarks</div>
+                    {found.remarks.map((r,i)=>(
+                      <div key={i} className="remark-item">
+                        <div style={{fontSize:13,color:'var(--text)'}}>{r.text}</div>
+                        <div className="remark-meta">— {r.author} · {fmtDate(r.at)} {fmtTime(r.at)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Admin Dashboard ────────────────────────────────────────────────
+function AdminDashboard() {
+  const {complaints,users,setPage} = useApp();
+  const total = complaints.length;
+  const pending = complaints.filter(c=>c.status==='Pending').length;
+  const progress = complaints.filter(c=>c.status==='In Progress').length;
+  const resolved = complaints.filter(c=>c.status==='Resolved').length;
+  const urgent = complaints.filter(c=>c.priority==='urgent'&&c.status!=='Resolved').length;
+  const chartRef = useRef();
+  const chartInst = useRef();
+
+  useEffect(()=>{
+    if(!chartRef.current) return;
+    if(chartInst.current) chartInst.current.destroy();
+    const catCounts = CATEGORIES.map(c=>complaints.filter(x=>x.category===c.id).length);
+    chartInst.current = new Chart(chartRef.current, {
+      type:'bar',
+      data:{
+        labels:CATEGORIES.map(c=>c.name),
+        datasets:[{label:'Complaints',data:catCounts,backgroundColor:CATEGORIES.map(c=>c.color+'bb'),borderRadius:6,borderSkipped:false}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Sora',size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:'Sora',size:11},stepSize:1}}}}
+    });
+    return ()=>chartInst.current?.destroy();
+  },[complaints.length]);
+
+  const recent = [...complaints].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,6);
+
+  return (
+    <div className="fade-in">
+      <div className="page-header"><div><div className="page-title">Admin Dashboard 🏛️</div><div className="page-sub">System-wide complaint management overview</div></div></div>
+      <div className="page-body">
+        <div className="stats-grid">
+          {[
+            {label:'Total Complaints',value:total,icon:'📋',color:'#3b82f6'},
+            {label:'Pending',value:pending,icon:'⏳',color:'#f7971e'},
+            {label:'In Progress',value:progress,icon:'🔄',color:'#8b5cf6'},
+            {label:'Resolved',value:resolved,icon:'✅',color:'#16c79a'},
+            {label:'Urgent Issues',value:urgent,icon:'🚨',color:'#ef4444'},
+            {label:'Registered Citizens',value:users.filter(u=>u.role==='citizen').length,icon:'👤',color:'#06b6d4'},
+          ].map(s=>(
+            <div className="stat-card" key={s.label}>
+              <div className="stat-icon" style={{background:s.color+'18'}}><span style={{fontSize:18}}>{s.icon}</span></div>
+              <div className="stat-value" style={{color:s.color}}>{s.value}</div>
+              <div className="stat-label">{s.label}</div>
+              <div className="progress-bar mt-2"><div className="progress-fill" style={{width:`${total?Math.round(s.value/total*100):0}%`,background:s.color}}/></div>
+            </div>
+          ))}
+        </div>
+
+        <div className="two-col" style={{marginBottom:20}}>
+          <div className="card">
+            <div className="card-header"><div className="card-title">Complaints by Category</div></div>
+            <div className="card-body"><div className="chart-wrap"><canvas ref={chartRef}/></div></div>
+          </div>
+          <div className="card">
+            <div className="card-header"><div className="card-title">Resolution Rate</div></div>
+            <div className="card-body">
+              {[{l:'Resolved',v:resolved,c:'var(--accent)'},{l:'In Progress',v:progress,c:'#8b5cf6'},{l:'Pending',v:pending,c:'#f7971e'}].map(({l,v,c})=>(
+                <div key={l} style={{marginBottom:16}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}><span style={{fontSize:13,fontWeight:500}}>{l}</span><span style={{fontSize:13,color:'var(--text2)'}}>{v} / {total}</span></div>
+                  <div className="progress-bar"><div className="progress-fill" style={{width:`${total?Math.round(v/total*100):0}%`,background:c}}/></div>
+                </div>
+              ))}
+              <div className="divider"/>
+              <div style={{fontSize:24,fontWeight:700,color:'var(--accent)',marginBottom:4}}>{total?Math.round(resolved/total*100):0}%</div>
+              <div style={{fontSize:12,color:'var(--text2)'}}>Overall resolution rate</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header"><div className="card-title">Recent Activity</div><button className="btn btn-secondary" style={{fontSize:12,padding:'5px 12px'}} onClick={()=>setPage('all-complaints')}>View All</button></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Title</th><th>Category</th><th>District</th><th>Priority</th><th>Status</th><th>Submitted</th></tr></thead>
+              <tbody>{recent.map(c=>(
+                <tr key={c.id}>
+                  <td><span className="tracking-id" style={{fontSize:11,padding:'2px 7px'}}>{c.id}</span></td>
+                  <td style={{maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>{c.title}</td>
+                  <td><CatBadge cat={c.category}/></td>
+                  <td style={{fontSize:13}}>{c.district}</td>
+                  <td><PriorityBadge p={c.priority}/></td>
+                  <td><StatusBadge status={c.status}/></td>
+                  <td style={{fontSize:12,color:'var(--text2)'}}>{fmtDate(c.createdAt)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── All Complaints (Admin) ─────────────────────────────────────────
+function AllComplaints({urgentOnly}) {
+  const {complaints} = useApp();
+  const [filter,setFilter] = useState('all');
+  const [catFilter,setCatFilter] = useState('all');
+  const [distFilter,setDistFilter] = useState('all');
+  const [search,setSearch] = useState('');
+  const [selected,setSelected] = useState(null);
+
+  let filtered = complaints;
+  if(urgentOnly) filtered = filtered.filter(c=>c.priority==='urgent'&&c.status!=='Resolved');
+  if(filter!=='all') filtered = filtered.filter(c=>c.status===filter);
+  if(catFilter!=='all') filtered = filtered.filter(c=>c.category===catFilter);
+  if(distFilter!=='all') filtered = filtered.filter(c=>c.district===distFilter);
+  if(search) filtered = filtered.filter(c=>c.title.toLowerCase().includes(search.toLowerCase())||c.id.toLowerCase().includes(search.toLowerCase())||c.district.toLowerCase().includes(search.toLowerCase()));
+
+  const allDistricts = [...new Set(complaints.map(c=>c.district))];
+
+  return (
+    <div className="fade-in">
+      <div className="page-header">
+        <div>
+          <div className="page-title">{urgentOnly?'🚨 Urgent Issues':'📋 All Complaints'}</div>
+          <div className="page-sub">{filtered.length} complaints shown</div>
+        </div>
+      </div>
+      <div className="page-body">
+        <div className="filters-bar">
+          <div className="search-input-wrap">
+            <span className="search-icon">🔍</span>
+            <input placeholder="Search complaints..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          </div>
+          <select className="filter-select" value={filter} onChange={e=>setFilter(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+          <select className="filter-select" value={catFilter} onChange={e=>setCatFilter(e.target.value)}>
+            <option value="all">All Categories</option>
+            {CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select className="filter-select" value={distFilter} onChange={e=>setDistFilter(e.target.value)}>
+            <option value="all">All Districts</option>
+            {allDistricts.map(d=><option key={d}>{d}</option>)}
+          </select>
+        </div>
+        {filtered.length===0 ? <div className="empty-state"><div className="empty-icon">🎉</div><div className="empty-title">No complaints found</div><div className="empty-desc">Great — all clear!</div></div> : (
+          <div className="card">
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>ID</th><th>Title</th><th>Category</th><th>District</th><th>Dept</th><th>Priority</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+                <tbody>{filtered.map(c=>(
+                  <tr key={c.id}>
+                    <td><span className="tracking-id" style={{fontSize:11,padding:'2px 7px'}}>{c.id}</span></td>
+                    <td style={{maxWidth:180,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>{c.title}</td>
+                    <td><CatBadge cat={c.category}/></td>
+                    <td style={{fontSize:13}}>{c.district}</td>
+                    <td style={{fontSize:12,color:'var(--text2)'}}>{c.assignedDept}</td>
+                    <td><PriorityBadge p={c.priority}/></td>
+                    <td><StatusBadge status={c.status}/></td>
+                    <td style={{fontSize:12,color:'var(--text2)'}}>{fmtDate(c.createdAt)}</td>
+                    <td><button className="btn btn-secondary" style={{fontSize:12,padding:'5px 12px'}} onClick={()=>setSelected(c)}>Manage</button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+      {selected && <ComplaintDetailModal complaint={selected} onClose={()=>setSelected(null)}/>}
+    </div>
+  );
+}
+
+// ─── Complaint Detail Modal ─────────────────────────────────────────
+function ComplaintDetailModal({complaint,onClose,readOnly}) {
+  const {updateComplaint,showToast,currentUser,officers} = useApp();
+  const [status,setStatus] = useState(complaint.status);
+  const [officerId,setOfficerId] = useState(complaint.assignedOfficer);
+  const [remark,setRemark] = useState('');
+  const [saving,setSaving] = useState(false);
+  const c = complaint;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        status,
+        assigned_officer_id: officerId || null,
+        remark: remark.trim() || undefined
+      };
+      const response = await api.request(`/complaints/${c.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      const updated = mapComplaintToFrontend(response);
+      updateComplaint(c.id, updated);
+      showToast('Complaint updated successfully', 'success');
+      onClose();
+    } catch (err) {
+      showToast(err.message || 'Error updating complaint', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal fade-in">
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">{c.title}</div>
+            <div style={{marginTop:6}}><span className="tracking-id" style={{fontSize:12}}>{c.id}</span></div>
+          </div>
+          <button className="close-btn" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+            {[
+              {l:'Category',v:<CatBadge cat={c.category}/>},
+              {l:'Department',v:c.assignedDept},
+              {l:'State',v:c.state},
+              {l:'District',v:c.district},
+              {l:'Area',v:c.area||'—'},
+              {l:'Priority',v:<PriorityBadge p={c.priority}/>},
+              {l:'Filed',v:fmtDate(c.createdAt)},
+              {l:'Updated',v:fmtDate(c.updatedAt)},
+            ].map(({l,v})=>(
+              <div key={l} style={{background:'var(--surface2)',borderRadius:8,padding:'10px 12px'}}>
+                <div style={{fontSize:10.5,color:'var(--text3)',textTransform:'uppercase',letterSpacing:0.5,marginBottom:3}}>{l}</div>
+                <div style={{fontSize:13,fontWeight:500}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:'var(--surface2)',borderRadius:8,padding:'12px 14px',marginBottom:16}}>
+            <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:0.5,marginBottom:6}}>Description</div>
+            <div style={{fontSize:13.5,color:'var(--text)',lineHeight:1.6}}>{c.description}</div>
+          </div>
+
+          {c.images?.length>0 && (
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:600,color:'var(--text2)',marginBottom:8}}>Attached Photos</div>
+              <div className="image-preview-grid">
+                {c.images.map((img,i)=><div key={i} className="image-preview" style={{width:80,height:80}}><img src={img} alt={`img${i}`}/></div>)}
+              </div>
+            </div>
+          )}
+
+          {!readOnly && (
+            <div style={{borderTop:'1px solid var(--border)',paddingTop:16,marginTop:4}}>
+              <div style={{fontSize:13,fontWeight:600,color:'var(--text)',marginBottom:12}}>Admin Actions</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+                <div>
+                  <label className="form-label">Update Status</label>
+                  <select className="form-input" value={status} onChange={e=>setStatus(e.target.value)}>
+                    <option>Pending</option>
+                    <option>In Progress</option>
+                    <option>Resolved</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Assign Officer</label>
+                  <select className="form-input" value={officerId||''} onChange={e=>setOfficerId(e.target.value?parseInt(e.target.value):null)}>
+                    <option value="">— Unassigned —</option>
+                    {officers.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="form-label">Add Remark / Comment</label>
+                <textarea className="form-input" rows={3} placeholder="Add notes or updates for the citizen..." value={remark} onChange={e=>setRemark(e.target.value)}/>
+              </div>
+            </div>
+          )}
+
+          {c.remarks?.length>0 && (
+            <div style={{marginTop:16}}>
+              <div style={{fontSize:13,fontWeight:600,color:'var(--text)',marginBottom:10}}>Remarks History</div>
+              {c.remarks.map((r,i)=>(
+                <div key={i} className="remark-item">
+                  <div style={{fontSize:13,color:'var(--text)'}}>{r.text}</div>
+                  <div className="remark-meta">— {r.author} · {fmtDate(r.at)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {!readOnly && (
+          <div className="modal-footer">
+            <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>
+              {saving?<><span className="spinner"/>Saving...</>:'💾 Save Changes'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Officers Page ──────────────────────────────────────────────────
+function OfficersPage() {
+  const {complaints,officers} = useApp();
+  return (
+    <div className="fade-in">
+      <div className="page-header"><div><div className="page-title">Officers Management 👮</div><div className="page-sub">Assigned field officers and workload</div></div></div>
+      <div className="page-body">
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:16}}>
+          {officers.map(o=>{
+            const assigned = complaints.filter(c=>c.assignedOfficer===o.id);
+            const resolved = assigned.filter(c=>c.status==='Resolved').length;
+            return (
+              <div className="card" key={o.id} style={{padding:20}}>
+                <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
+                  <div className="user-avatar" style={{width:44,height:44,fontSize:16}}>{o.name.split(' ').map(w=>w[0]).join('')}</div>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:14,color:'var(--text)'}}>{o.name}</div>
+                    <div style={{fontSize:12,color:'var(--text2)'}}>{o.dept}</div>
+                  </div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
+                  {[{l:'Assigned',v:assigned.length},{l:'Active',v:assigned.filter(c=>c.status!=='Resolved').length},{l:'Resolved',v:resolved}].map(({l,v})=>(
+                    <div key={l} style={{background:'var(--surface2)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
+                      <div style={{fontSize:17,fontWeight:700,color:'var(--text)'}}>{v}</div>
+                      <div style={{fontSize:10.5,color:'var(--text2)'}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginBottom:5}}>Resolution rate</div>
+                  <div className="progress-bar"><div className="progress-fill" style={{width:`${assigned.length?Math.round(resolved/assigned.length*100):0}%`}}/></div>
+                  <div style={{fontSize:11.5,color:'var(--text2)',marginTop:4,textAlign:'right'}}>{assigned.length?Math.round(resolved/assigned.length*100):0}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Analytics ──────────────────────────────────────────────────────
+function Analytics() {
+  const {complaints} = useApp();
+  const chartRef1 = useRef(), chartRef2 = useRef();
+  const inst1 = useRef(), inst2 = useRef();
+  const [monthlyData, setMonthlyData] = useState([]);
+
+  useEffect(() => {
+    const fetchMonthly = async () => {
+      try {
+        const data = await api.request('/analytics/monthly');
+        setMonthlyData(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchMonthly();
+  }, []);
+
+  useEffect(()=>{
+    if(chartRef1.current && monthlyData.length > 0){
+      if(inst1.current) inst1.current.destroy();
+      const labels = monthlyData.map(d => {
+        const date = new Date(d.year, d.month - 1);
+        return date.toLocaleDateString('en-IN', {month:'short',year:'2-digit'});
+      });
+      const submitted = monthlyData.map(d => d.total);
+      const resolved = monthlyData.map(d => d.resolved);
+      inst1.current = new Chart(chartRef1.current,{
+        type:'line',
+        data:{labels,datasets:[
+          {label:'Submitted',data:submitted,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',tension:0.4,fill:true},
+          {label:'Resolved',data:resolved,borderColor:'var(--accent)',backgroundColor:'rgba(22,199,154,0.08)',tension:0.4,fill:true},
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'Sora',size:12}}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.04)'}}}}
+      });
+    }
+    if(chartRef2.current){
+      if(inst2.current) inst2.current.destroy();
+      const cats = CATEGORIES.map(c=>complaints.filter(x=>x.category===c.id).length);
+      inst2.current = new Chart(chartRef2.current,{
+        type:'polarArea',
+        data:{labels:CATEGORIES.map(c=>c.name),datasets:[{data:cats,backgroundColor:CATEGORIES.map(c=>c.color+'99'),borderWidth:0}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{family:'Sora',size:11}}}}}
+      });
+    }
+    return ()=>{inst1.current?.destroy();inst2.current?.destroy();};
+  },[monthlyData, complaints]);
+
+  const avgRes = '3.2 days';
+  const urgentPct = complaints.length ? Math.round(complaints.filter(c=>c.priority==='urgent').length/complaints.length*100) : 0;
+
+  return (
+    <div className="fade-in">
+      <div className="page-header"><div><div className="page-title">Analytics 📈</div><div className="page-sub">Complaint trends and performance metrics</div></div></div>
+      <div className="page-body">
+        <div className="stats-grid" style={{marginBottom:24}}>
+          {[
+            {label:'Avg Resolution Time',value:avgRes,icon:'⏱️',color:'#8b5cf6'},
+            {label:'Urgent Rate',value:`${urgentPct}%`,icon:'🚨',color:'#ef4444'},
+            {label:'Top Category',value:CATEGORIES.reduce((p,c)=>complaints.filter(x=>x.category===c.id).length>complaints.filter(x=>x.category===p.id).length?c:p,CATEGORIES[0]).name,icon:'📊',color:'#f7971e'},
+            {label:'Active Districts',value:new Set(complaints.map(c=>c.district)).size,icon:'📍',color:'#3b82f6'},
+          ].map(s=>(
+            <div className="stat-card" key={s.label}>
+              <div className="stat-icon" style={{background:s.color+'18'}}><span style={{fontSize:18}}>{s.icon}</span></div>
+              <div style={{fontSize:20,fontWeight:700,color:s.color,letterSpacing:-0.5}}>{s.value}</div>
+              <div className="stat-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div className="two-col" style={{marginBottom:20}}>
+          <div className="card"><div className="card-header"><div className="card-title">Monthly Trend (6 months)</div></div><div className="card-body"><div className="chart-wrap"><canvas ref={chartRef1}/></div></div></div>
+          <div className="card"><div className="card-header"><div className="card-title">Category Distribution</div></div><div className="card-body"><div className="chart-wrap"><canvas ref={chartRef2}/></div></div></div>
+        </div>
+        <div className="card">
+          <div className="card-header"><div className="card-title">District-wise Summary</div></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>District</th><th>Total</th><th>Pending</th><th>In Progress</th><th>Resolved</th><th>Resolution Rate</th></tr></thead>
+              <tbody>
+                {[...new Set(complaints.map(c=>c.district))].map(d=>{
+                  const dc = complaints.filter(c=>c.district===d);
+                  const res = dc.filter(c=>c.status==='Resolved').length;
+                  return (
+                    <tr key={d}>
+                      <td style={{fontWeight:600}}>{d}</td>
+                      <td>{dc.length}</td>
+                      <td><span className="badge badge-pending">{dc.filter(c=>c.status==='Pending').length}</span></td>
+                      <td><span className="badge badge-progress">{dc.filter(c=>c.status==='In Progress').length}</span></td>
+                      <td><span className="badge badge-resolved">{res}</span></td>
+                      <td>
+                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                          <div className="progress-bar" style={{flex:1}}><div className="progress-fill" style={{width:`${dc.length?Math.round(res/dc.length*100):0}%`}}/></div>
+                          <span style={{fontSize:12,color:'var(--text2)',minWidth:32}}>{dc.length?Math.round(res/dc.length*100):0}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Root App ───────────────────────────────────────────────────────
+function App() {
+  const [dark,setDark] = useState(false);
+  const [users,setUsers] = useState([]);
+  const [complaints,setComplaints] = useState([]);
+  const [officers,setOfficers] = useState([]);
+  const [currentUser,setCurrentUser] = useState(null);
+  const [page,setPage] = useState('dashboard');
+  const [toasts,setToasts] = useState([]);
+  const [sidebarOpen,setSidebarOpen] = useState(false);
+
+  // Check token on startup
+  useEffect(() => {
+    const initApp = async () => {
+      const token = api.getToken();
+      if (token) {
+        try {
+          const user = await api.request('/auth/me');
+          setCurrentUser(mapUserToFrontend(user));
+        } catch (err) {
+          api.clearToken();
+        }
+      }
+    };
+    initApp();
+  }, []);
+
+  // Fetch data when currentUser changes
+  useEffect(() => {
+    if (!currentUser) {
+      setComplaints([]);
+      setUsers([]);
+      setOfficers([]);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        // Fetch complaints
+        const compData = await api.request('/complaints?per_page=1000');
+        setComplaints(compData.complaints.map(mapComplaintToFrontend));
+
+        // Fetch officers
+        const officerData = await api.request('/officers');
+        setOfficers(officerData.map(mapOfficerToFrontend));
+
+        // If admin, fetch users list
+        if (currentUser.role === 'admin') {
+          const userData = await api.request('/admin/users');
+          setUsers(userData.map(mapUserToFrontend));
+        }
+      } catch (err) {
+        showToast('Error loading data from server', 'error');
+      }
+    };
+
+    fetchData();
+  }, [currentUser]);
+
+  useEffect(()=>{
+    if(currentUser){
+      setPage(currentUser.role==='admin'?'admin-dashboard':'dashboard');
+    }
+  },[currentUser?.id]);
+
+  const showToast = (msg,type='info') => {
+    const id = Date.now();
+    setToasts(t=>[...t,{id,msg,type}]);
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);
+  };
+  const addUser = u => setUsers(prev=>[...prev,u]);
+  const addComplaint = c => setComplaints(prev=>[c,...prev]);
+  const updateComplaint = (id,updates) => setComplaints(prev=>prev.map(c=>c.id===id?{...c,...updates}:c));
+
+  const ctx = {users,currentUser,setCurrentUser,complaints,addComplaint,updateComplaint,showToast,page,setPage,dark,setDark,addUser,officers};
+
+  const renderPage = () => {
+    if(currentUser?.role==='citizen'){
+      if(page==='dashboard') return <CitizenDashboard/>;
+      if(page==='submit') return <SubmitComplaint/>;
+      if(page==='my-complaints') return <MyComplaints/>;
+      if(page==='track') return <TrackComplaint/>;
+    }
+    if(currentUser?.role==='admin'){
+      if(page==='admin-dashboard') return <AdminDashboard/>;
+      if(page==='all-complaints') return <AllComplaints/>;
+      if(page==='urgent') return <AllComplaints urgentOnly/>;
+      if(page==='officers') return <OfficersPage/>;
+      if(page==='analytics') return <Analytics/>;
+    }
+    return null;
+  };
+
+  return (
+    <AppCtx.Provider value={ctx}>
+      <div data-dark={dark||undefined} style={{height:'100%'}}>
+        {!currentUser ? <AuthPage/> : (
+          <div className="app-layout">
+            <Sidebar open={sidebarOpen} setOpen={setSidebarOpen}/>
+            <div className="main">
+              <div style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'12px 20px',display:'flex',alignItems:'center',gap:12}}>
+                <button className="hamburger" onClick={()=>setSidebarOpen(o=>!o)}>☰</button>
+                <div style={{flex:1}}/>
+                <button className="dark-toggle" onClick={()=>setDark(d=>!d)}>{dark?'☀️':'🌙'}</button>
+              </div>
+              {renderPage()}
+            </div>
+          </div>
+        )}
+        <ToastContainer toasts={toasts}/>
+      </div>
+    </AppCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
